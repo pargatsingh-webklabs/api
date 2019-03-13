@@ -6,6 +6,7 @@ class Api extends CI_Controller {
         parent::__construct();
 		$this->load->model('User_model');
 		$this->load->model('User_token_model');
+		$this->load->model('Feed_model');
 		$this->load->helper('Token');
 	}
 	
@@ -13,14 +14,12 @@ class Api extends CI_Controller {
 	    $userdata=$this->input->post();
 	    $addexpire_at_time = $this->config->item('addexpire_at_time');
 		if(empty($userdata['password']) || empty($userdata["email"])){
-			echo json_encode(array("result"=>"error","data"=>"Email and password cannot be empty"));die;
+			return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'Email and password cannot be empty']));
 		}
 		$userdata = $this->User_model->get_Users($userdata);
 		if(empty($userdata)){
-			echo json_encode(array("result"=>"error","data"=>"Wrong credentials"));
-			die;
+			return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'Wrong credentials']));
 		}
-		
 		
 		$usertoken = $this->User_token_model->get_usertoken($userdata);
 		
@@ -35,9 +34,9 @@ class Api extends CI_Controller {
             $data['created'] = time();
             $userarray=$this->User_token_model->generate_token($data);
             if(!empty($userarray)){
-			   echo json_encode(array("result"=>"success","data"=>$userarray));die;
+				return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($userarray));
 			} else{
-			    echo json_encode(array("result"=>"error","data"=>"There is some error generating tokens, Please try again"));die;
+				return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'There is some error generating tokens, Please try again']));
 			    
 			}
 		}else{
@@ -45,7 +44,7 @@ class Api extends CI_Controller {
 				$userarray["refresh_token"]=$usertoken['refresh_token'];
 				$userarray["access_token"]=$usertoken['access_token'];
 				$userarray["expire_at"]=$usertoken['expire_at'];
-				echo json_encode(array("result"=>"success","data"=>$userarray));die;
+				return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($userarray));
 		}
 	
     }	
@@ -53,19 +52,19 @@ class Api extends CI_Controller {
     public function register(){
         $userdata=$this->input->post();
 		if(empty($userdata["fname"]) || empty($userdata["lname"]) || empty($userdata["email"]) || empty($userdata["password"]) || empty($userdata["dob"])){
-			echo json_encode(array("result"=>"error","data"=>"Please fill out all fields"));die;
+			return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'Please fill out all fields']));
 		}
 	
 		$check_user = $this->User_model->check_user($userdata["email"]);
 		if(empty($check_user)){
 			$userdata = $this->User_model->save_user($userdata);
 			if($userdata){
-				echo json_encode(array("result"=>"success","data"=>"User created successfully"));die;		
+				return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode(['message' => 'User created successfully']));	
 			}else{
-				echo json_encode(array("result"=>"error","data"=>"Error while registration"));die;	
+				return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'Error while registration']));
 			}
 		}else{
-			echo json_encode(array("result"=>"error","data"=>"User with same email already registered"));die;
+			return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'User with same email already registered']));
 		}
 	}
   
@@ -82,12 +81,14 @@ class Api extends CI_Controller {
 			if(!empty($usertoken_data)){
 				$userdata = $this->User_model->get_user($usertoken_data['user_id']);
 				if($userdata){
-					echo json_encode(array("result"=>"success","data"=>$userdata));die;		
+					return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($userdata));
+					
 				}else{
-					echo json_encode(array("result"=>"error","data"=>"No user exist"));die;	
+					return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'No user exist']));
+						
 				}
 			}else{
-				echo json_encode(array("result"=>"error","data"=>"Invalid token"));die;
+				return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'Invalid token']));
 			}
 		
 	}
@@ -98,7 +99,7 @@ class Api extends CI_Controller {
 			$userdata['refresh_token']=$this->input->post("refresh_token");
 			$userdata['user_id']=$this->input->post("user_id");
 			if(!$this->User_token_model->validateAccessToken($userdata)){
-			    echo json_encode(array("result"=>"error","data"=>"Invalid token"));die;
+				return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'Invalid token']));
 			}
 			
 			$usertoken_data = $this->User_token_model->get_refreshtoken_data($userdata);
@@ -107,7 +108,8 @@ class Api extends CI_Controller {
 			
 			if(!empty($usertoken_data)){
 			    unset($usertoken_data["id"]);
-				echo json_encode(array("result"=>"success","data"=>$usertoken_data));die;
+			    return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($usertoken_data));
+				
 			}else{
 			    $data['user_id'] = $userdata['user_id'];
                 $data['refresh_token'] = $userdata['refresh_token'];
@@ -116,16 +118,54 @@ class Api extends CI_Controller {
                 $data['status'] = '1';
                 $data['created'] = time();
                 $userarray=$this->User_token_model->generate_token($data);	
-                if(!empty($userarray)){
-    			   echo json_encode(array("result"=>"success","data"=>$userarray));die;
-    			} else{
-    			    echo json_encode(array("result"=>"error","data"=>"There is some error generating tokens, Please try again"));die;
-    			    
-    			}
+    			
+    			if (!empty($userarray)) {
+                return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($userarray));
+				} else {
+				return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'There is some error generating tokens, Please try again']));
+				}
+    			
 			}
 			
 		
 	}
+	
+	public function feed(){
+		$postdata = $this->input->post();
+		if(@$postdata){
+		
+			if(empty($postdata["title"]) || empty($postdata["description"]) || empty($postdata["created_at"])){
+				echo json_encode(array("result"=>"error","data"=>"Please fill out all fields"));die;
+			}
+			
+			$result = $this->Feed_model->save_feed($postdata);
+				
+			if ($result) {
+                return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode(['message' =>'Feed added successfully']));
+            } else {
+                return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'There is some error while adding feeds']));
+            }	
+
+		}
+		
+		    $count_feeds = $this->Feed_model->count_feeds();
+		    $per_page = $this->config->item('per_page_records');
+		    $number_of_pages = ceil($count_feeds/$per_page);
+			$page = ($_GET['page']) ? $_GET['page'] : 1;
+			$page_limit = ($page-1) * $per_page;	
+			$get_feeds = $this->Feed_model->get_feeds($per_page,$page_limit);
+			
+			if (!empty($get_feeds)) {
+				$result_data = array("items"=>$get_feeds,"num_pages"=>$number_of_pages,"page"=>$page);
+                return $this->output->set_content_type('application/json')->set_status_header(200)->set_output(json_encode($result_data));
+            } else {
+                return $this->output->set_content_type('application/json')->set_status_header(401)->set_output(json_encode(['message' => 'No record found']));
+            }
+		   
+	}
+	
+   
+	
    
    
 }

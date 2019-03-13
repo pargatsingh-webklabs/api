@@ -56,3 +56,4 @@ $route['v1/login'] = '/api/login';
 $route['v1/register'] = '/api/register';
 $route['v1/profile'] = '/api/profile';
 $route['v1/token'] = '/api/token';
+$route['v1/feed'] = '/api/feed';
